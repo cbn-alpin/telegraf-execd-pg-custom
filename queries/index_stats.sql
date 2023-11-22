@@ -1,26 +1,62 @@
-WITH q_locked_rels AS (
-  select relation from pg_locks where mode = 'AccessExclusiveLock' and granted
-)
+WITH
+    q_locked_rels AS (
+        SELECT
+            relation
+        FROM
+            pg_locks
+        WHERE
+            MODE = 'AccessExclusiveLock'
+            AND GRANTED
+    )
 SELECT
-  schemaname::text as schema,
-  indexrelname::text as index_name,
-  relname::text as table_name,
-  coalesce(idx_scan, 0) as idx_scan,
-  coalesce(idx_tup_read, 0) as idx_tup_read,
-  coalesce(idx_tup_fetch, 0) as idx_tup_fetch,
-  coalesce(pg_relation_size(indexrelid), 0) as index_size_b,
-  quote_ident(schemaname)||'.'||quote_ident(sui.indexrelname) as index_full_name_val,
-  regexp_replace(regexp_replace(pg_get_indexdef(sui.indexrelid),indexrelname,'X'), '^CREATE UNIQUE','CREATE') as index_def,
-  case when not i.indisvalid then 1 else 0 end as is_invalid_int,
-  case when i.indisprimary then 1 else 0 end as is_pk_int,
-  case when i.indisunique or indisexclusion then 1 else 0 end as is_uq_or_exc
+    schemaname::TEXT AS SCHEMA,
+    indexrelname::TEXT AS index_name,
+    relname::TEXT AS table_name,
+    COALESCE(idx_scan, 0) AS idx_scan,
+    COALESCE(idx_tup_read, 0) AS idx_tup_read,
+    COALESCE(idx_tup_fetch, 0) AS idx_tup_fetch,
+    COALESCE(PG_RELATION_SIZE(indexrelid), 0) AS index_size_b,
+    QUOTE_IDENT(schemaname) || '.' || QUOTE_IDENT(sui.indexrelname) AS index_full_name_val,
+    REGEXP_REPLACE(
+        REGEXP_REPLACE(
+            PG_GET_INDEXDEF(sui.indexrelid),
+            indexrelname,
+            'X'
+        ),
+        '^CREATE UNIQUE',
+        'CREATE'
+    ) AS index_def,
+    CASE
+        WHEN NOT i.indisvalid THEN 1
+        ELSE 0
+    END AS is_invalid_int,
+    CASE
+        WHEN i.indisprimary THEN 1
+        ELSE 0
+    END AS is_pk_int,
+    CASE
+        WHEN i.indisunique
+        OR indisexclusion THEN 1
+        ELSE 0
+    END AS is_uq_or_exc
 FROM
-  pg_stat_user_indexes sui
-  JOIN
-  pg_index i USING (indexrelid)
+    pg_stat_user_indexes sui
+    JOIN pg_index i USING (indexrelid)
 WHERE
-  NOT schemaname like E'pg\\_temp%'
-  AND i.indrelid not in (select relation from q_locked_rels)
-  AND i.indexrelid not in (select relation from q_locked_rels)
+    NOT schemaname LIKE E'pg\\_temp%'
+    AND i.indrelid NOT IN (
+        SELECT
+            relation
+        FROM
+            q_locked_rels
+    )
+    AND i.indexrelid NOT IN (
+        SELECT
+            relation
+        FROM
+            q_locked_rels
+    )
 ORDER BY
-  schemaname, relname, indexrelname;
+    schemaname,
+    relname,
+    indexrelname;

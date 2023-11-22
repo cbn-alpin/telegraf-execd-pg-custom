@@ -1,38 +1,144 @@
-with sa_snapshot as (
-  select * from pg_stat_activity
-  where datname = current_database()
-  and not query like 'autovacuum:%'
-  and pid != pg_backend_pid()
-)
-select
-  (select count(*) from sa_snapshot) as total,
-  (select count(*) from pg_stat_activity
-    where pid != pg_backend_pid()) as instance_total,
-  current_setting('max_connections')::int as max_connections,
-  (select count(*) from sa_snapshot where state = 'active') as active,
-  (select count(*) from sa_snapshot where state = 'idle') as idle,
-  (select count(*) from sa_snapshot
-    where state = 'idle in transaction') as idleintransaction,
-  (select count(*) from sa_snapshot
-    where wait_event_type in ('LWLockNamed', 'Lock', 'BufferPin'))
-    as waiting,
-  (select extract(epoch from max(now() - query_start))::int
-    from sa_snapshot where wait_event_type
-    in ('LWLockNamed', 'Lock', 'BufferPin'))
-    as longest_waiting_seconds,
-  (select extract(epoch from (now() - backend_start))::int
-    from sa_snapshot order by backend_start limit 1)
-    as longest_session_seconds,
-  (select extract(epoch from (now() - xact_start))::int
-    from sa_snapshot where xact_start is not null
-    order by xact_start limit 1) as longest_tx_seconds,
-  (select extract(epoch from (now() - xact_start))::int
-    from pg_stat_activity where query like 'autovacuum:%'
-    order by xact_start limit 1) as longest_autovacuum_seconds,
-  (select extract(epoch from max(now() - query_start))::int
-    from sa_snapshot where state = 'active') as longest_query_seconds,
-  (select max(age(backend_xmin))::int8 from sa_snapshot)
-    as max_xmin_age_tx,
-  (select count(*) from pg_stat_activity
-    where datname = current_database()
-    and query like 'autovacuum:%') as av_workers;
+WITH
+    sa_snapshot AS (
+        SELECT
+            *
+        FROM
+            pg_stat_activity
+        WHERE
+            datname = CURRENT_DATABASE()
+            AND NOT query LIKE 'autovacuum:%'
+            AND pid != PG_BACKEND_PID()
+    )
+SELECT
+    (
+        SELECT
+            COUNT(*)
+        FROM
+            sa_snapshot
+    ) AS total,
+    (
+        SELECT
+            COUNT(*)
+        FROM
+            pg_stat_activity
+        WHERE
+            pid != PG_BACKEND_PID()
+    ) AS instance_total,
+    CURRENT_SETTING('max_connections')::INT AS max_connections,
+    (
+        SELECT
+            COUNT(*)
+        FROM
+            sa_snapshot
+        WHERE
+            state = 'active'
+    ) AS active,
+    (
+        SELECT
+            COUNT(*)
+        FROM
+            sa_snapshot
+        WHERE
+            state = 'idle'
+    ) AS idle,
+    (
+        SELECT
+            COUNT(*)
+        FROM
+            sa_snapshot
+        WHERE
+            state = 'idle in transaction'
+    ) AS idleintransaction,
+    (
+        SELECT
+            COUNT(*)
+        FROM
+            sa_snapshot
+        WHERE
+            wait_event_type IN ('LWLockNamed', 'Lock', 'BufferPin')
+    ) AS waiting,
+    (
+        SELECT
+            EXTRACT(
+                epoch
+                FROM
+                    MAX(NOW() - query_start)
+            )::INT
+        FROM
+            sa_snapshot
+        WHERE
+            wait_event_type IN ('LWLockNamed', 'Lock', 'BufferPin')
+    ) AS longest_waiting_seconds,
+    (
+        SELECT
+            EXTRACT(
+                epoch
+                FROM
+                    (NOW() - backend_start)
+            )::INT
+        FROM
+            sa_snapshot
+        ORDER BY
+            backend_start
+        LIMIT
+            1
+    ) AS longest_session_seconds,
+    (
+        SELECT
+            EXTRACT(
+                epoch
+                FROM
+                    (NOW() - xact_start)
+            )::INT
+        FROM
+            sa_snapshot
+        WHERE
+            xact_start IS NOT NULL
+        ORDER BY
+            xact_start
+        LIMIT
+            1
+    ) AS longest_tx_seconds,
+    (
+        SELECT
+            EXTRACT(
+                epoch
+                FROM
+                    (NOW() - xact_start)
+            )::INT
+        FROM
+            pg_stat_activity
+        WHERE
+            query LIKE 'autovacuum:%'
+        ORDER BY
+            xact_start
+        LIMIT
+            1
+    ) AS longest_autovacuum_seconds,
+    (
+        SELECT
+            EXTRACT(
+                epoch
+                FROM
+                    MAX(NOW() - query_start)
+            )::INT
+        FROM
+            sa_snapshot
+        WHERE
+            state = 'active'
+    ) AS longest_query_seconds,
+    (
+        SELECT
+            MAX(age (backend_xmin))::int8
+        FROM
+            sa_snapshot
+    ) AS max_xmin_age_tx,
+    (
+        SELECT
+            COUNT(*)
+        FROM
+            pg_stat_activity
+        WHERE
+            datname = CURRENT_DATABASE()
+            AND query LIKE 'autovacuum:%'
+    ) AS av_workers;

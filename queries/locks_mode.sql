@@ -1,14 +1,34 @@
-WITH q_locks AS (
-  select
-    *
-  from
-    pg_locks
-  where
-    pid != pg_backend_pid()
-    and database = (select oid from pg_database where datname = current_database())
-)
+WITH
+    q_locks AS (
+        SELECT
+            *
+        FROM
+            pg_locks
+        WHERE
+            pid != PG_BACKEND_PID()
+            AND DATABASE = (
+                SELECT
+                    oid
+                FROM
+                    pg_database
+                WHERE
+                    datname = CURRENT_DATABASE()
+            )
+    )
 SELECT
-  lockmodes AS lockmode,
-  coalesce((select count(*) FROM q_locks WHERE mode = lockmodes), 0) AS count
+    lockmodes AS lockmode,
+    COALESCE(
+        (
+            SELECT
+                COUNT(*)
+            FROM
+                q_locks
+            WHERE
+                MODE = lockmodes
+        ),
+        0
+    ) AS COUNT
 FROM
-  unnest('{AccessShareLock, ExclusiveLock, RowShareLock, RowExclusiveLock, ShareLock, ShareRowExclusiveLock,  AccessExclusiveLock, ShareUpdateExclusiveLock}'::text[]) lockmodes;
+    UNNEST(
+        '{AccessShareLock, ExclusiveLock, RowShareLock, RowExclusiveLock, ShareLock, ShareRowExclusiveLock,  AccessExclusiveLock, ShareUpdateExclusiveLock}'::TEXT[]
+    ) lockmodes;
