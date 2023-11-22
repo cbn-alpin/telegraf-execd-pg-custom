@@ -33,7 +33,7 @@ sdk is not required.
    [[inputs.execd]]
      interval = "300s"
      data_format = "influx"
-     command = ["/some/location/venv/bin/python", "/etc/telegraf/scripts/pg_custom/postgresql_query.py", "/etc/telegraf/scripts/pg_custom/postgresql_custom_data.conf"]
+     command = ["/etc/telegraf/scripts/pg_custom/venv/bin/python", "/etc/telegraf/scripts/pg_custom/postgresql_query.py", "/etc/telegraf/scripts/pg_custom/postgresql_custom_data.conf"]
      restart_delay = "60s"
      signal = "STDIN"
 
